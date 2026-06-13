@@ -1,40 +1,52 @@
 import { useState, useEffect } from "react";
 import { Briefcase, MapPin, IndianRupee, Bookmark, Send, CheckCircle, Search, RefreshCw, BookmarkCheck } from "lucide-react";
-import { InternshipListing } from "../types";
+import { InternshipListing, UserProfile } from "../types";
+import { 
+  subscribeInternships, 
+  subscribeInternshipInteractions, 
+  setInternshipInteractionInDb, 
+  InternshipInteraction 
+} from "../firebaseService";
 
-export default function Internships() {
-  const [jobs, setJobs] = useState<InternshipListing[]>([]);
+interface InternshipsProps {
+  userRef: UserProfile;
+}
+
+export default function Internships({ userRef }: InternshipsProps) {
+  const [internshipsList, setInternshipsList] = useState<InternshipListing[]>([]);
+  const [interactions, setInteractions] = useState<InternshipInteraction[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState("All");
 
-  const fetchJobs = async () => {
+  const fetchJobs = () => {
     setLoading(true);
-    try {
-      const res = await fetch("/api/internships");
-      const data = await res.json();
-      if (data.status === "success") {
-        setJobs(data.internships);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
+    const unsubInternships = subscribeInternships((listings) => {
+      setInternshipsList(listings);
       setLoading(false);
-    }
+    });
+
+    const unsubInteractions = subscribeInternshipInteractions(userRef.id, (userInteractions) => {
+      setInteractions(userInteractions);
+    });
+
+    return () => {
+      unsubInternships();
+      unsubInteractions();
+    };
   };
 
   useEffect(() => {
-    fetchJobs();
-  }, []);
+    return fetchJobs();
+  }, [userRef.id]);
 
   const handleApply = async (id: string) => {
     try {
-      const res = await fetch(`/api/internships/${id}/apply`, { method: "POST" });
-      const data = await res.json();
-      if (data.status === "success") {
-        alert("Your application request has been dispatched to Company HR! Track its active state under the Pipeline Overview.");
-        fetchJobs();
-      }
+      await setInternshipInteractionInDb(userRef.id, id, {
+        applied: true,
+        status: "Applied"
+      });
+      alert("Your application request has been dispatched to Company HR! Track its active state under the Pipeline Overview.");
     } catch (err) {
       console.error(err);
     }
@@ -42,15 +54,27 @@ export default function Internships() {
 
   const handleSave = async (id: string) => {
     try {
-      const res = await fetch(`/api/internships/${id}/save`, { method: "POST" });
-      const data = await res.json();
-      if (data.status === "success") {
-        fetchJobs();
-      }
+      const existing = interactions.find(item => item.internshipId === id);
+      const nextSavedValue = !existing?.saved;
+      await setInternshipInteractionInDb(userRef.id, id, {
+        saved: nextSavedValue,
+        status: nextSavedValue ? "Saved" : undefined
+      });
     } catch (err) {
       console.error(err);
     }
   };
+
+  // Merge master listing with user specific interaction statuses
+  const jobs: InternshipListing[] = internshipsList.map(j => {
+    const interaction = interactions.find(item => item.internshipId === j.id);
+    return {
+      ...j,
+      applied: interaction?.applied ?? false,
+      saved: interaction?.saved ?? false,
+      status: (interaction?.status || (interaction?.applied ? "Applied" : undefined)) as any
+    };
+  });
 
   const filteredJobs = jobs.filter(j => {
     const matchesSearch = j.title.toLowerCase().includes(search.toLowerCase()) || 

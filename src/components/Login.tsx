@@ -9,7 +9,8 @@ import {
 import { auth, db } from "../firebase";
 import { createUserProfileInDb, getUserProfile } from "../firebaseService";
 import { UserRole } from "../types";
-import { Sparkles, Mail, Lock, User, GraduationCap, MapPin, AlertCircle, Eye, EyeOff } from "lucide-react";
+import { Sparkles, Mail, Lock, User, GraduationCap, MapPin, AlertCircle, Eye, EyeOff, ClipboardList } from "lucide-react";
+import firebaseConfig from "../../firebase-applet-config.json";
 
 interface LoginProps {
   onLoginSuccess: (uid: string) => void;
@@ -27,6 +28,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [isAuthNotAllowed, setIsAuthNotAllowed] = useState(false);
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,7 +83,10 @@ export default function Login({ onLoginSuccess }: LoginProps) {
       }
     } catch (err: any) {
       console.error("Auth error", err);
-      if (err.code === "auth/invalid-credential") {
+      if (err.code === "auth/operation-not-allowed" || err.message?.includes("operation-not-allowed")) {
+        setIsAuthNotAllowed(true);
+        setErrorMsg("Email/Password Sign-In is disabled in the Firebase Console. Follow the guide below to enable it.");
+      } else if (err.code === "auth/invalid-credential") {
         setErrorMsg("Incorrect credentials. Please verify your email/password.");
       } else if (err.code === "auth/weak-password") {
         setErrorMsg("Password must be at least 6 characters.");
@@ -183,6 +188,39 @@ export default function Login({ onLoginSuccess }: LoginProps) {
           <div className="p-3 bg-red-950/40 border border-red-900/50 rounded-xl flex items-center gap-2 text-xs text-red-200">
             <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
             <span>{errorMsg}</span>
+          </div>
+        )}
+
+        {isAuthNotAllowed && (
+          <div className="p-4 bg-slate-950/90 border border-amber-500/30 rounded-2xl space-y-3 text-xs text-slate-300 font-sans animate-fade-in">
+            <div className="flex items-center gap-2 text-amber-400 font-bold uppercase tracking-wider text-[10px]">
+              <AlertCircle className="w-4.5 h-4.5 text-amber-500 shrink-0" />
+              <span>Firebase Auth Action Required</span>
+            </div>
+            <p className="text-[11px] text-slate-400 leading-normal">
+              To use email registration or password authentication, you need to turn on the **Email/Password** provider inside your virtual Firebase console project.
+            </p>
+            <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-850 space-y-2 text-[10.5px]">
+              <span className="text-white font-semibold block">Simplest Resolution Steps:</span>
+              <ol className="list-decimal list-inside space-y-1.5 text-slate-350">
+                <li>
+                  Open the <a 
+                    href={`https://console.firebase.google.com/project/${firebaseConfig.projectId}/authentication/providers`} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="text-indigo-400 hover:text-indigo-300 underline font-semibold inline-flex items-center gap-0.5"
+                  >
+                    Firebase Auth Console <span className="text-[9px]">↗</span>
+                  </a>
+                </li>
+                <li>Under the <span className="text-slate-200 font-medium">Sign-in method</span> tab, click <span className="text-slate-200 font-medium">Add new provider</span></li>
+                <li>Select <span className="text-slate-200 font-medium">Email/Password</span>, toggle it to <span className="text-emerald-400 font-medium">Enable</span>, and click <span className="text-slate-200 font-medium">Save</span>.</li>
+                <li>(Optional) Enable <span className="text-slate-200 font-medium font-mono">Anonymous</span> to support quick demo guest entry if needed later.</li>
+              </ol>
+            </div>
+            <p className="text-[10px] text-slate-500 italic leading-tight">
+              Once saved, please refresh the browser or retry signing up here immediately without any restarts!
+            </p>
           </div>
         )}
 

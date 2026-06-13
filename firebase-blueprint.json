@@ -149,6 +149,39 @@
         "createdAt": { "type": "string" }
       },
       "required": ["id", "userId", "amount", "type", "createdAt"]
+    },
+    "InternshipListing": {
+      "title": "InternshipListing",
+      "description": "Vetted College Internship Pipelines.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "company": { "type": "string" },
+        "location": { "type": "string" },
+        "type": { "type": "string" },
+        "duration": { "type": "string" },
+        "stipend": { "type": "string" },
+        "requirements": { "type": "array" },
+        "description": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "title", "company", "type", "createdAt"]
+    },
+    "InternshipInteraction": {
+      "title": "InternshipInteraction",
+      "description": "User specific internship application and bookmark status.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "internshipId": { "type": "string" },
+        "applied": { "type": "boolean" },
+        "saved": { "type": "boolean" },
+        "status": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "userId", "internshipId", "applied", "saved"]
     }
   },
   "firestore": {
@@ -183,6 +216,14 @@
     "/transactions/{transactionId}": {
       "schema": "WalletTransaction",
       "description": "Secure virtual monetary logs."
+    },
+    "/internships/{internshipId}": {
+      "schema": "InternshipListing",
+      "description": "Master list of vetted campus internship pipelines."
+    },
+    "/internship_interactions/{interactionId}": {
+      "schema": "InternshipInteraction",
+      "description": "Student specific application tracking."
     }
   }
 }

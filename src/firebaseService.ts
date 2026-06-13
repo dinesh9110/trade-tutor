@@ -7,7 +7,7 @@ import {
   signInAnonymously
 } from "firebase/auth";
 import { auth, db } from "./firebase";
-import { UserProfile, ProductListing, Assignment, ForumPost, ChatThread, ChatMessage, TeamMemberRequest, WalletTransaction, UserRole } from "./types";
+import { UserProfile, ProductListing, Assignment, ForumPost, ChatThread, ChatMessage, TeamMemberRequest, WalletTransaction, UserRole, InternshipListing } from "./types";
 
 export enum OperationType {
   CREATE = 'create',
@@ -216,6 +216,53 @@ export async function seedDatabaseIfEmpty() {
         await setDoc(doc(db, "forums", f.id), f);
       }
     }
+
+    const internSnap = await getDocs(collection(db, "internships"));
+    if (internSnap.empty) {
+      console.log("Seeding initial internships into Firestore...");
+      const dummyInternships = [
+        {
+          id: "intern_1",
+          title: "Software Engineering Intern (Web Systems)",
+          company: "Stripe",
+          location: "San Francisco, CA / Remote Possible",
+          type: "Remote",
+          duration: "12 Weeks (Fall 2026)",
+          stipend: "₹500/hour + Housing Allowance",
+          requirements: ["Solid foundations in React, TS & RESTful systems", "Willingness to learn Ruby/Go frameworks", "Past personal fullstack side-projects"],
+          description: "Stripe makes accepting payments simple, seamless, and global. Join the Developer Relations & Dashboard core engineering team to build interfaces used by millions of merchants worldwide.",
+          createdAt: "2026-06-08"
+        },
+        {
+          id: "intern_2",
+          title: "Junior Product Manager (Growth Team)",
+          company: "Notion Labs",
+          location: "New York, NY",
+          type: "Hybrid",
+          duration: "16 Weeks",
+          stipend: "₹450/hour",
+          requirements: ["Excellent written communication", "Can query relational data utilizing basic SQL", "Keen eye for functional minimalistic UI design"],
+          description: "Join Notion Product Growth team. You'll run continuous AB testing, draft PRDs (Product Requirements Documents), and optimize workspace setup onboarding funnel speeds.",
+          createdAt: "2026-06-11"
+        },
+        {
+          id: "intern_3",
+          title: "Generative AI Systems Intern",
+          company: "Google",
+          location: "Mountain View, CA / Hybrid",
+          type: "Hybrid",
+          duration: "12 Weeks",
+          stipend: "₹650/hour",
+          requirements: ["Familiarity with foundational Large Language Models", "Python, JAX, or PyTorch knowledge", "Highly interested in agentic frameworks"],
+          description: "Work on next-generation model capabilities, tool telemetry logging, and prompt interface optimizations.",
+          createdAt: "2026-06-12"
+        }
+      ];
+
+      for (const i of dummyInternships) {
+        await setDoc(doc(db, "internships", i.id), i);
+      }
+    }
   } catch (error) {
     console.error("Database seeding failed", error);
   }
@@ -294,6 +341,22 @@ export function subscribeUserProfile(uid: string, callback: (profile: UserProfil
     }
   }, (err) => {
     handleFirestoreError(err, OperationType.GET, path);
+  });
+}
+
+export function subscribePeers(callback: (profiles: UserProfile[]) => void) {
+  const path = "profiles";
+  const q = query(collection(db, "profiles"));
+  return onSnapshot(q, (snap) => {
+    const list: UserProfile[] = [];
+    snap.forEach((d) => {
+      list.push(d.data() as UserProfile);
+    });
+    // Sort alphabetically by name
+    list.sort((a, b) => a.name.localeCompare(b.name));
+    callback(list);
+  }, (err) => {
+    handleFirestoreError(err, OperationType.LIST, path);
   });
 }
 
@@ -403,6 +466,75 @@ export function subscribeTransactions(uid: string, callback: (txs: WalletTransac
   }, (err) => {
     handleFirestoreError(err, OperationType.LIST, path);
   });
+}
+
+export interface InternshipInteraction {
+  id: string;
+  userId: string;
+  internshipId: string;
+  applied: boolean;
+  saved: boolean;
+  status?: string;
+  updatedAt: string;
+}
+
+export function subscribeInternships(callback: (listings: InternshipListing[]) => void) {
+  const path = "internships";
+  const q = query(collection(db, path));
+  return onSnapshot(q, (snap) => {
+    const list: InternshipListing[] = [];
+    snap.forEach((d) => {
+      list.push(d.data() as InternshipListing);
+    });
+    list.sort((a, b) => a.id.localeCompare(b.id));
+    callback(list);
+  }, (err) => {
+    handleFirestoreError(err, OperationType.LIST, path);
+  });
+}
+
+export function subscribeInternshipInteractions(uid: string, callback: (interactions: InternshipInteraction[]) => void) {
+  const path = "internship_interactions";
+  const q = query(collection(db, path), where("userId", "==", uid));
+  return onSnapshot(q, (snap) => {
+    const list: InternshipInteraction[] = [];
+    snap.forEach((d) => {
+      list.push(d.data() as InternshipInteraction);
+    });
+    callback(list);
+  }, (err) => {
+    handleFirestoreError(err, OperationType.LIST, path);
+  });
+}
+
+export async function setInternshipInteractionInDb(userId: string, internshipId: string, updates: Partial<InternshipInteraction>) {
+  const id = `${userId}_${internshipId}`;
+  const path = `internship_interactions/${id}`;
+  try {
+    const docRef = doc(db, "internship_interactions", id);
+    const snap = await getDoc(docRef);
+    const timeString = new Date().toISOString();
+    
+    if (snap.exists()) {
+      await updateDoc(docRef, {
+        ...updates,
+        updatedAt: timeString
+      });
+    } else {
+      const initial: InternshipInteraction = {
+        id,
+        userId,
+        internshipId,
+        applied: updates.applied ?? false,
+        saved: updates.saved ?? false,
+        status: updates.status,
+        updatedAt: timeString
+      };
+      await setDoc(docRef, initial);
+    }
+  } catch (err) {
+    handleFirestoreError(err, OperationType.CREATE, path);
+  }
 }
 
 // =========================================================================

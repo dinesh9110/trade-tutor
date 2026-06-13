@@ -96,6 +96,19 @@ service cloud.firestore {
       allow update, delete: if false; // transactions are immutable
     }
 
+    // Internships Collection
+    match /internships/{internshipId} {
+      allow read: if isSignedIn();
+    }
+
+    // Internship Interactions Collection (Saves, Applications)
+    match /internship_interactions/{interactionId} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid;
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+
     // Catch-all Default-Deny rule at the end
     match /{document=**} {
       allow read, write: if false;

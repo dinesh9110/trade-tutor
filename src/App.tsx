@@ -3,10 +3,12 @@ import {
   ShoppingCart, GraduationCap, Users, Sparkles, MessageSquare, 
   Briefcase, Layers, CreditCard, Menu, X, User,
   Github, Globe, HelpCircle, ShieldAlert, LogOut, Bell,
-  Sun, Moon
+  Sun, Moon, LayoutDashboard
 } from "lucide-react";
 
 import { UserProfile, UserRole, Assignment, ChatThread } from "./types";
+import Dashboard from "./components/Dashboard";
+import GlobalSearch from "./components/GlobalSearch";
 import Marketplace from "./components/Marketplace";
 import Assignments from "./components/Assignments";
 import Projects from "./components/Projects";
@@ -30,7 +32,7 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<string>("marketplace");
+  const [activeTab, setActiveTab] = useState<string>("dashboard");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -248,6 +250,7 @@ export default function App() {
   };
 
   const navItems = [
+    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "marketplace", label: "P2P Marketplace", icon: ShoppingCart },
     { id: "assignments", label: "Assignments Bid", icon: GraduationCap },
     { id: "projects", label: "Team Collaborator", icon: Users },
@@ -450,6 +453,13 @@ export default function App() {
             <span className="text-[9.5px] text-indigo-400 font-mono tracking-widest uppercase mt-0.5 block">College Utility Portal</span>
           </div>
         </div>
+
+        {/* Global Search Component */}
+        <GlobalSearch 
+          userRef={userProfile}
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+        />
 
         {/* Desktop navbar balance indicators & Profile Control */}
         <div className="hidden lg:flex items-center gap-4">
@@ -675,6 +685,13 @@ export default function App() {
 
         {/* Central Work Space Page Area */}
         <main className="flex-grow p-4 lg:p-8 max-w-7xl mx-auto w-full">
+          {activeTab === "dashboard" && (
+            <Dashboard 
+              userRef={userProfile} 
+              onNavigate={(tabId) => setActiveTab(tabId)} 
+            />
+          )}
+
           {activeTab === "marketplace" && (
             <Marketplace 
               userRef={userProfile} 
@@ -699,7 +716,7 @@ export default function App() {
           )}
 
           {activeTab === "internships" && (
-            <Internships />
+            <Internships userRef={userProfile} />
           )}
 
           {activeTab === "community" && (
