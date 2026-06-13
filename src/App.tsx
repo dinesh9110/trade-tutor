@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { 
   ShoppingCart, GraduationCap, Users, Sparkles, MessageSquare, 
   Briefcase, Layers, CreditCard, Menu, X, User,
-  Github, Globe, HelpCircle, ShieldAlert, LogOut, Bell
+  Github, Globe, HelpCircle, ShieldAlert, LogOut, Bell,
+  Sun, Moon
 } from "lucide-react";
 
 import { UserProfile, UserRole, Assignment, ChatThread } from "./types";
@@ -16,7 +17,8 @@ import Community from "./components/Community";
 import Wallet from "./components/Wallet";
 import Login from "./components/Login";
 
-import { auth } from "./firebase";
+import { auth, rtdb } from "./firebase";
+import { ref, onValue } from "firebase/database";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { 
   subscribeUserProfile, 
@@ -33,6 +35,47 @@ export default function App() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
+
+  const [isLightTheme, setIsLightTheme] = useState<boolean>(() => {
+    return localStorage.getItem("theme_preference") === "light";
+  });
+
+  // Real-time Firebase Connection State Tracking
+  const [isFirebaseConnected, setIsFirebaseConnected] = useState<boolean>(true);
+  const [isBrowserOnline, setIsBrowserOnline] = useState<boolean>(navigator.onLine);
+
+  const isOnline = isBrowserOnline && isFirebaseConnected;
+
+  useEffect(() => {
+    localStorage.setItem("theme_preference", isLightTheme ? "light" : "dark");
+  }, [isLightTheme]);
+
+  useEffect(() => {
+    let unsubscribe: (() => void) | undefined;
+    try {
+      const connectedRef = ref(rtdb, ".info/connected");
+      unsubscribe = onValue(connectedRef, (snap) => {
+        setIsFirebaseConnected(!!snap.val());
+      }, (error) => {
+        console.warn("RTDB connected listener failed: ", error);
+        // Fallback or keep current
+      });
+    } catch (err) {
+      console.warn("Could not setup RTDB connection listener: ", err);
+    }
+
+    const handleOnline = () => setIsBrowserOnline(true);
+    const handleOffline = () => setIsBrowserOnline(false);
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
 
   // Real-time toast notifications state
   interface ToastNotification {
@@ -233,16 +276,177 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
+    <div className={`min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans ${isLightTheme ? "theme-light" : ""}`}>
+      
+      {isLightTheme && (
+        <style dangerouslySetInnerHTML={{ __html: `
+          /* HIGH CONTRAST LIGHT THEME SCROLLBARS AND GENERAL ROOT */
+          :root {
+            color-scheme: light !important;
+          }
+          
+          /* Main structural remapping */
+          .theme-light, 
+          .theme-light .bg-slate-950, 
+          .theme-light .bg-slate-950\\/80, 
+          .theme-light .bg-slate-950\\/95,
+          .theme-light .bg-slate-950\\/60,
+          .theme-light .bg-\\[\\#111216\\] {
+            background-color: #f8fafc !important; /* pristine off-white slate-50 */
+            color: #0f172a !important; /* solid charcoal slate-900 */
+          }
+          
+          /* Overlay or floating panel overrides */
+          .theme-light .bg-slate-900,
+          .theme-light .bg-slate-900\\/60,
+          .theme-light .bg-slate-900\\/50,
+          .theme-light .bg-slate-900\\/80,
+          .theme-light .bg-slate-950\\/40,
+          .theme-light .bg-\\[\\#171920\\],
+          .theme-light .bg-slate-900\\/60 {
+            background-color: #ffffff !important; /* pure white for contrast */
+            color: #1e293b !important;
+          }
+          
+          /* Active page backgrounds & sidebar / header borders */
+          .theme-light header,
+          .theme-light aside,
+          .theme-light .border-slate-900,
+          .theme-light .border-slate-800,
+          .theme-light .border-slate-850,
+          .theme-light .border-slate-800\\/80,
+          .theme-light .border-slate-750,
+          .theme-light .border-slate-700 {
+            border-color: #cbd5e1 !important; /* elegant border-slate-300 */
+          }
+          
+          /* Button controls & list item hovers */
+          .theme-light .hover\\:bg-slate-850:hover,
+          .theme-light .hover\\:bg-slate-900\\/60:hover,
+          .theme-light .hover\\:bg-slate-800:hover,
+          .theme-light .bg-slate-850,
+          .theme-light .bg-slate-800 {
+            background-color: #f1f5f9 !important; /* light gray hover slate-100 */
+            color: #0f172a !important;
+          }
+          
+          /* Text overrides for headers and body elements */
+          .theme-light .text-slate-100,
+          .theme-light .text-white,
+          .theme-light .text-slate-200,
+          .theme-light h1,
+          .theme-light h2,
+          .theme-light h3,
+          .theme-light h4,
+          .theme-light h5 {
+            color: #0f172a !important;
+          }
+          
+          /* Specifically, make trade tutor title very dark */
+          .theme-light h1.font-black,
+          .theme-light h2.font-black {
+            color: #0f172a !important;
+          }
+          
+          .theme-light .text-slate-300,
+          .theme-light .text-slate-350,
+          .theme-light .text-slate-400,
+          .theme-light .text-slate-450,
+          .theme-light p {
+            color: #334155 !important; /* readable dark gray slate-700 */
+          }
+          
+          .theme-light .text-slate-500,
+          .theme-light .text-slate-550,
+          .theme-light .text-slate-600,
+          .theme-light .text-slate-650 {
+            color: #64748b !important; /* accessible generic gray slate-500 */
+          }
+          
+          /* High contrast readability adjustments on alert banners & dynamic text */
+          .theme-light .text-indigo-400 {
+            color: #4f46e5 !important; /* rich deep indigo */
+          }
+          .theme-light .text-emerald-400 {
+            color: #16a34a !important; /* readable rich forest green */
+          }
+          .theme-light .text-rose-400,
+          .theme-light .text-red-400,
+          .theme-light .text-slate-405 {
+            color: #dc2626 !important; /* bright alarm red */
+          }
+          .theme-light .text-amber-400,
+          .theme-light .text-orange-400 {
+            color: #b45309 !important; /* dark readable orange */
+          }
+          
+          /* Forms, Textareas, Inputs inside components */
+          .theme-light input,
+          .theme-light textarea,
+          .theme-light select {
+            background-color: #ffffff !important;
+            border-color: #cbd5e1 !important;
+            color: #0f172a !important;
+          }
+          .theme-light input::placeholder,
+          .theme-light textarea::placeholder {
+            color: #94a3b8 !important;
+          }
+          
+          /* Interactive modals */
+          .theme-light .backdrop-blur-xs,
+          .theme-light .bg-black\\/60,
+          .theme-light .bg-black\\/80 {
+            background-color: rgba(15, 23, 42, 0.45) !important;
+          }
+          
+          /* Custom overrides for components with special custom classes */
+          .theme-light .border-indigo-500\\/10 {
+            border-color: rgba(79, 70, 229, 0.2) !important;
+          }
+          
+          /* Fix active icon highlight alignment in list components */
+          .theme-light .bg-indigo-600 {
+            background-color: #4f46e5 !important;
+            color: #ffffff !important;
+          }
+          .theme-light .bg-indigo-600 * {
+            color: #ffffff !important;
+          }
+          
+          /* Additional visual fixes */
+          .theme-light .shadow-2xl {
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.08) !important;
+          }
+          .theme-light .bg-indigo-500\\/5 {
+            background-color: rgba(79, 70, 229, 0.05) !important;
+          }
+          .theme-light .bg-emerald-500\\/5 {
+            background-color: rgba(22, 163, 74, 0.05) !important;
+          }
+          .theme-light .bg-amber-500\\/5 {
+            background-color: rgba(217, 119, 6, 0.05) !important;
+          }
+          .theme-light .border-indigo-500\\/15 {
+            border-color: rgba(79, 70, 229, 0.15) !important;
+          }
+          .theme-light .border-emerald-500\\/15 {
+            border-color: rgba(22, 163, 74, 0.15) !important;
+          }
+          .theme-light .border-amber-500\\/15 {
+            border-color: rgba(217, 119, 6, 0.15) !important;
+          }
+        ` }} />
+      )}
       
       {/* Top Navigation Header */}
       <header className="sticky top-0 z-40 bg-slate-950/95 border-b border-slate-900 backdrop-blur-md px-4 lg:px-8 py-3.5 flex justify-between items-center">
         <div className="flex items-center gap-2.5 animate-fade-in">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-400 flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-600/10">
-            CC
+            TT
           </div>
           <div>
-            <h1 className="font-sans font-black text-white text-base tracking-tight leading-none">CAMPUS CONNECT</h1>
+            <h1 className="font-sans font-black text-white text-base tracking-tight leading-none">TRADE TUTOR</h1>
             <span className="text-[9.5px] text-indigo-400 font-mono tracking-widest uppercase mt-0.5 block">College Utility Portal</span>
           </div>
         </div>
@@ -265,11 +469,29 @@ export default function App() {
             onClick={() => setShowProfileModal(true)}
             className="flex items-center gap-2 bg-slate-900 border border-slate-800 hover:border-slate-700 px-3 py-1.5 rounded-xl text-xs text-slate-300 transition cursor-pointer"
           >
-            <img src={userProfile.avatar} className="w-5.5 h-5.5 rounded-full object-cover border border-slate-750" alt={userProfile.name} />
+            <div className="relative">
+              <img src={userProfile.avatar} className="w-5.5 h-5.5 rounded-full object-cover border border-slate-755" alt={userProfile.name} />
+              <span className={`absolute bottom-0 right-0 block h-2 w-2 rounded-full ring-2 ring-slate-900 ${isOnline ? "bg-emerald-500 animate-pulse" : "bg-rose-500"}`} />
+            </div>
             <div className="text-left font-medium">
               <div className="leading-none text-white font-semibold">{userProfile.name}</div>
-              <div className="text-[8px] text-slate-500 font-mono tracking-wider mt-0.5">{userProfile.role.toUpperCase()}</div>
+              <div className="text-[8px] mt-0.5 font-mono tracking-wider flex items-center gap-1.5">
+                <span className="text-slate-500">{userProfile.role.toUpperCase()}</span>
+                <span className="text-slate-600 font-normal">|</span>
+                <span className={isOnline ? "text-emerald-400 font-bold" : "text-rose-400 font-bold"}>
+                  {isOnline ? "ONLINE" : "OFFLINE"}
+                </span>
+              </div>
             </div>
+          </button>
+
+          {/* Dynamic Theme Toggle Widget */}
+          <button
+            onClick={() => setIsLightTheme(!isLightTheme)}
+            title={isLightTheme ? "Switch to Dark Mode" : "Switch to High-Contrast Light Theme"}
+            className="p-2.5 bg-slate-900 border border-slate-850 hover:bg-slate-800/80 text-amber-400 hover:text-indigo-400 rounded-xl transition cursor-pointer flex items-center justify-center shrink-0"
+          >
+            {isLightTheme ? <Moon className="w-4 h-4 text-slate-400" /> : <Sun className="w-4 h-4 text-amber-400" />}
           </button>
 
           {/* Secure Logout system widget */}
@@ -283,18 +505,22 @@ export default function App() {
         </div>
 
         {/* Mobile menu triggers */}
-        <div className="lg:hidden flex items-center gap-2">
+        <div className="lg:hidden flex items-center gap-2 animate-fade-in">
+          {/* Mobile Theme Toggle Widget */}
           <button
-            onClick={handleSignOut}
-            className="p-2 text-slate-405 hover:text-red-400 transition"
+            onClick={() => setIsLightTheme(!isLightTheme)}
+            title={isLightTheme ? "Switch to Dark Mode" : "Switch to High-Contrast Light Theme"}
+            className="p-2 bg-slate-900 border border-slate-800 hover:border-slate-705 text-amber-400 rounded-xl transition cursor-pointer flex items-center justify-center shrink-0"
           >
-            <LogOut className="w-4 h-4" />
+            {isLightTheme ? <Moon className="w-4 h-4 text-slate-400" /> : <Sun className="w-4 h-4 text-amber-400" />}
           </button>
+
           <button 
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-2 text-slate-400 hover:text-white transition cursor-pointer"
+            onClick={() => setMobileMenuOpen(true)}
+            className="flex items-center gap-2 bg-slate-900 border border-slate-800 hover:border-slate-705 p-1.5 rounded-xl text-xs text-slate-350 transition cursor-pointer"
           >
-            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            <img src={userProfile.avatar} className="w-6 h-6 rounded-lg object-cover border border-slate-750" alt={userProfile.name} />
+            <Menu className="w-4 h-4 text-slate-400" />
           </button>
         </div>
       </header>
@@ -332,41 +558,120 @@ export default function App() {
         </aside>
 
         {/* Mobile menu drawer */}
-        {mobileMenuOpen && (
-          <div className="lg:hidden fixed inset-x-0 top-[60px] bg-slate-950 border-b border-slate-900 z-50 p-4 space-y-2 shadow-2xl">
-            <div className="flex justify-between items-center p-3 bg-slate-900 border border-slate-850 rounded-xl text-xs mb-3">
-              <div className="flex items-center gap-1.5">
-                <span className="text-slate-400">Balance:</span>
-                <span className="text-indigo-400 font-bold">₹{userProfile.walletBalance.toFixed(2)}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-slate-400">Earnings:</span>
-                <span className="text-emerald-400 font-bold">₹{userProfile.earnings.toFixed(2)}</span>
-              </div>
-            </div>
+        <AnimatePresence>
+          {mobileMenuOpen && (
+            <>
+              {/* Backdrop */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setMobileMenuOpen(false)}
+                className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 lg:hidden"
+              />
 
-            {navItems.map(item => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    setActiveTab(item.id);
-                    setMobileMenuOpen(false);
-                  }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold transition ${
-                    activeTab === item.id 
-                      ? "bg-indigo-600 text-white" 
-                      : "bg-slate-900 hover:bg-slate-850 text-slate-350"
-                  }`}
-                >
-                  <Icon className="w-4 h-4 flex-shrink-0" />
-                  <span>{item.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        )}
+              {/* Drawer */}
+              <motion.aside
+                initial={{ x: "-100%" }}
+                animate={{ x: 0 }}
+                exit={{ x: "-100%" }}
+                transition={{ type: "tween", duration: 0.25 }}
+                className="fixed inset-y-0 left-0 w-72 max-w-[85vw] bg-slate-950 border-r border-slate-900 z-55 p-5 flex flex-col justify-between shadow-2xl overflow-y-auto lg:hidden"
+              >
+                <div className="space-y-6">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-600 to-indigo-400 flex items-center justify-center font-bold text-white text-xs shadow-lg shadow-indigo-600/10">
+                        TT
+                      </div>
+                      <div>
+                        <h2 className="font-sans font-black text-white text-sm tracking-tight leading-none">TRADE TUTOR</h2>
+                        <span className="text-[8.5px] text-indigo-400 font-mono tracking-widest uppercase mt-0.5 block">College Utility Portal</span>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="p-1.5 bg-slate-900 border border-slate-850 rounded-lg text-slate-400 hover:text-white transition cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <div className="flex justify-between items-center p-3 bg-slate-900 border border-slate-850 rounded-xl text-xs">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[9px] uppercase tracking-wider text-slate-500 font-bold">Balance</span>
+                      <span className="text-indigo-400 font-bold">₹{userProfile.walletBalance.toFixed(2)}</span>
+                    </div>
+                    <div className="w-px h-6 bg-slate-800" />
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[9px] uppercase tracking-wider text-slate-500 font-bold">Earnings</span>
+                      <span className="text-emerald-400 font-bold">₹{userProfile.earnings.toFixed(2)}</span>
+                    </div>
+                  </div>
+
+                  <nav className="space-y-1.5 flex flex-col">
+                    {navItems.map(item => {
+                      const Icon = item.icon;
+                      const isSelected = activeTab === item.id;
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => {
+                            setActiveTab(item.id);
+                            setMobileMenuOpen(false);
+                          }}
+                          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold transition cursor-pointer text-left ${
+                            isSelected 
+                              ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/10" 
+                              : item.highlight 
+                                ? "bg-slate-900 hover:bg-slate-850 text-indigo-400 hover:text-indigo-300 border border-indigo-500/10"
+                                : "text-slate-400 hover:text-slate-200 hover:bg-slate-900/60"
+                          }`}
+                        >
+                          <Icon className={`w-4 h-4 flex-shrink-0 ${item.highlight && !isSelected ? "text-indigo-400" : ""}`} />
+                          <span>{item.label}</span>
+                        </button>
+                      );
+                    })}
+                  </nav>
+                </div>
+
+                <div className="pt-6 border-t border-slate-900/80 mt-6 space-y-4">
+                  <button 
+                    onClick={() => {
+                      setShowProfileModal(true);
+                      setMobileMenuOpen(false);
+                    }}
+                    className="w-full flex items-center gap-2 bg-slate-900 border border-slate-800 hover:border-slate-700 px-3 py-3 rounded-xl text-xs text-slate-300 transition cursor-pointer"
+                  >
+                    <div className="relative">
+                      <img src={userProfile.avatar} className="w-5.5 h-5.5 rounded-full object-cover border border-slate-755" alt="" />
+                      <span className={`absolute bottom-0 right-0 block h-2 w-2 rounded-full ring-2 ring-slate-900 ${isOnline ? "bg-emerald-500 animate-pulse" : "bg-rose-500"}`} />
+                    </div>
+                    <div className="text-left font-medium">
+                      <div className="leading-none text-white font-semibold">{userProfile.name}</div>
+                      <div className="text-[8px] mt-0.5 font-mono tracking-wider flex items-center gap-1.5">
+                        <span className="text-slate-500">{userProfile.role.toUpperCase()}</span>
+                        <span className="text-slate-600 font-normal">|</span>
+                        <span className={isOnline ? "text-emerald-400 font-bold" : "text-rose-400 font-bold"}>
+                          {isOnline ? "ONLINE" : "OFFLINE"}
+                        </span>
+                      </div>
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={handleSignOut}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 bg-red-600/10 hover:bg-red-600/20 text-red-400 text-xs font-semibold rounded-xl border border-red-505/10 transition cursor-pointer"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>Sign Out Session</span>
+                  </button>
+                </div>
+              </motion.aside>
+            </>
+          )}
+        </AnimatePresence>
 
         {/* Central Work Space Page Area */}
         <main className="flex-grow p-4 lg:p-8 max-w-7xl mx-auto w-full">
@@ -412,7 +717,7 @@ export default function App() {
 
       {/* Footer credits line */}
       <footer className="p-5 border-t border-slate-900/80 bg-slate-950 text-center text-[11px] text-slate-500">
-        © 2026 Campus Connect Inc. Built and protected with standard Google Firebase Identity systems and Firestore databases.
+        © 2026 Trade Tutor Inc. Built and protected with standard Google Firebase Identity systems and Firestore databases.
       </footer>
 
       {/* Profile Setup / Review Edit Modal */}
@@ -480,6 +785,21 @@ export default function App() {
                   onChange={(e) => setEditBio(e.target.value)}
                   className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl p-2.5 text-xs text-white focus:outline-none h-16 resize-none"
                 />
+              </div>
+
+              <div className="bg-slate-950/60 border border-slate-850 p-3 rounded-xl flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${isOnline ? "bg-emerald-500 animate-pulse" : "bg-rose-500"}`} />
+                  <div>
+                    <span className="text-[9px] uppercase font-bold text-slate-400 block tracking-wider">Sync Server Status</span>
+                    <span className="text-xs font-semibold text-slate-200">
+                      {isOnline ? "Active Connection" : "Local Sandbox Offline State"}
+                    </span>
+                  </div>
+                </div>
+                <span className="text-[8px] text-slate-500 font-mono font-bold tracking-wider uppercase">
+                  {isOnline ? "Firebase RTDB" : "No Handshake"}
+                </span>
               </div>
 
               <div className="pt-4 flex gap-3">

@@ -168,8 +168,9 @@ export async function seedDatabaseIfEmpty() {
           creatorAvatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&q=80&w=150",
           membersCount: 2,
           membersLimit: 4,
-          status: "Open",
-          createdAt: new Date().toISOString().split('T')[0]
+          status: "Open" as const,
+          createdAt: new Date().toISOString().split('T')[0],
+          deadline: new Date(Date.now() + 18 * 60 * 60 * 1000).toISOString() // 18 hours from now
         },
         {
           id: "col_2",
@@ -181,8 +182,9 @@ export async function seedDatabaseIfEmpty() {
           creatorAvatar: "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=150",
           membersCount: 1,
           membersLimit: 2,
-          status: "Open",
-          createdAt: new Date().toISOString().split('T')[0]
+          status: "Open" as const,
+          createdAt: new Date().toISOString().split('T')[0],
+          deadline: new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString() // 3 days from now
         }
       ];
 
@@ -247,7 +249,7 @@ export async function createUserProfileInDb(uid: string, profile: Partial<UserPr
     role: profile.role || UserRole.STUDENT,
     avatar: profile.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=120",
     skills: profile.skills || ["React", "HTML", "CSS"],
-    bio: profile.bio || "Hi! I just joined Campus Connect.",
+    bio: profile.bio || "Hi! I just joined Trade Tutor.",
     major: profile.major || "Undecided",
     university: profile.university || "Public Campus University",
     rating: 5.0,

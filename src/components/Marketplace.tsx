@@ -1,7 +1,15 @@
 import React, { useState, useEffect } from "react";
-import { Search, Filter, Plus, Book, Cpu, Radio, Clipboard, IndianRupee, RefreshCw, ShoppingCart, User, Trash2 } from "lucide-react";
+import { 
+  Search, Filter, Plus, Book, Cpu, Radio, Clipboard, IndianRupee, 
+  RefreshCw, ShoppingCart, User, Trash2, ShieldAlert, CheckCircle, 
+  Sparkles, AlertTriangle, ArrowRight, Wallet, Coins, Loader2 
+} from "lucide-react";
 import { ProductListing, UserProfile } from "../types";
-import { subscribeProducts, addProductToDb, buyProductInDb, deleteProductFromDb } from "../firebaseService";
+import { 
+  subscribeProducts, addProductToDb, buyProductInDb, deleteProductFromDb, 
+  depositIntoWalletInDb 
+} from "../firebaseService";
+import { AnimatePresence, motion } from "motion/react";
 
 interface MarketplaceProps {
   userRef: UserProfile;
@@ -15,6 +23,13 @@ export default function Marketplace({ userRef, onUpdateUser }: MarketplaceProps)
   const [loading, setLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+
+  // Purchase State Machines
+  const [insufficientFundsItem, setInsufficientFundsItem] = useState<ProductListing | null>(null);
+  const [recentPurchasedItem, setRecentPurchasedItem] = useState<ProductListing | null>(null);
+  const [purchaseError, setPurchaseError] = useState<string | null>(null);
+  const [purchaseLoading, setPurchaseLoading] = useState(false);
+  const [fundingLoading, setFundingLoading] = useState(false);
 
   // New Listing Data state
   const [newTitle, setNewTitle] = useState("");
@@ -69,17 +84,47 @@ export default function Marketplace({ userRef, onUpdateUser }: MarketplaceProps)
   const handleBuy = async (id: string) => {
     const prod = products.find(p => p.id === id);
     if (!prod) return;
+    
     if (userRef.walletBalance < prod.price) {
-      alert("Insufficient wallet balance! Please add funds in the Wallet tab.");
+      setInsufficientFundsItem(prod);
       return;
     }
 
+    setPurchaseLoading(true);
+    setPurchaseError(null);
     try {
       await buyProductInDb(prod, userRef);
-      alert(`Purchase successful! Escrow ledger registered for: ${prod.title}. Please coordinate on-campus exchange.`);
+      setRecentPurchasedItem(prod);
     } catch (err) {
       console.error(err);
-      alert("Network purchase failed.");
+      setPurchaseError("Cryptographic Escrow handoff failed. Please verify stable network connectivity.");
+    } finally {
+      setPurchaseLoading(false);
+    }
+  };
+
+  const handleQuickAutoFundingAndBuy = async () => {
+    if (!insufficientFundsItem) return;
+    const surplus = insufficientFundsItem.price - userRef.walletBalance;
+    if (surplus <= 0) return;
+
+    setFundingLoading(true);
+    setPurchaseError(null);
+    try {
+      // Simulate Razorpay funding instantly internally
+      await depositIntoWalletInDb(userRef.id, userRef.walletBalance, surplus);
+      // Construct mock user with top-up applied to execute atomic ledger write
+      const mockUpdatedUser = { ...userRef, walletBalance: userRef.walletBalance + surplus };
+      await buyProductInDb(insufficientFundsItem, mockUpdatedUser);
+      
+      const itemCompleted = insufficientFundsItem;
+      setInsufficientFundsItem(null);
+      setRecentPurchasedItem(itemCompleted);
+    } catch (err) {
+      console.error(err);
+      setPurchaseError("Auto top-up gateway settlement rejected. Please verify your mock Razorpay profile.");
+    } finally {
+      setFundingLoading(false);
     }
   };
 
@@ -173,7 +218,7 @@ export default function Marketplace({ userRef, onUpdateUser }: MarketplaceProps)
           <p className="text-sm text-slate-400">No active campus listings matching your query.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 md:gap-6">
           {filteredProducts.map(p => (
             <div key={p.id} className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden flex flex-col hover:border-slate-700 transition duration-150">
               <div className="relative h-44 bg-slate-950">
@@ -371,6 +416,203 @@ export default function Marketplace({ userRef, onUpdateUser }: MarketplaceProps)
           </div>
         </div>
       )}
+
+      {/* Global Purchase Error Toast */}
+      {purchaseError && (
+        <div className="fixed bottom-6 right-6 z-55 max-w-sm bg-red-950/95 border border-red-500/30 p-4 rounded-xl shadow-2xl flex items-start gap-3 animate-fade-in">
+          <ShieldAlert className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <h5 className="text-xs font-bold text-white uppercase tracking-wider">Transaction Error</h5>
+            <p className="text-[11px] text-red-300 leading-relaxed">{purchaseError}</p>
+            <button 
+              onClick={() => setPurchaseError(null)}
+              className="text-[10px] text-red-400 hover:text-red-300 underline font-semibold mt-1"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Insufficient Escrow Funds Modal */}
+      <AnimatePresence>
+        {insufficientFundsItem && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setInsufficientFundsItem(null)}
+              className="fixed inset-0 bg-black/80 backdrop-blur-xs z-50 flex items-center justify-center p-4"
+            >
+              {/* Modal Container */}
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-[#111216] border border-slate-800 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl"
+              >
+                {/* Header */}
+                <div className="p-5 bg-amber-500/5 border-b border-amber-500/15 flex items-center gap-3">
+                  <div className="p-2.5 bg-amber-500/10 rounded-xl text-amber-400 border border-amber-500/20">
+                    <ShieldAlert className="w-5 h-5 animate-pulse" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-white uppercase tracking-wide">Escrow Balance Warning</h4>
+                    <p className="text-[10px] text-amber-500 font-mono tracking-widest uppercase mb-0.5">Insufficient Funds</p>
+                  </div>
+                </div>
+
+                <div className="p-6 space-y-4">
+                  {/* Selected Item Reference CARD */}
+                  <div className="flex gap-3 bg-slate-900/60 p-3 rounded-xl border border-slate-800/80">
+                    <img 
+                      src={insufficientFundsItem.imageUrl} 
+                      className="w-12 h-12 object-cover rounded-lg border border-slate-800 shrink-0" 
+                      alt="" 
+                    />
+                    <div className="min-w-0 flex-grow">
+                      <span className="text-[9px] uppercase font-bold text-slate-500 tracking-wider block">{insufficientFundsItem.category}</span>
+                      <h5 className="text-xs font-bold text-white truncate leading-tight">{insufficientFundsItem.title}</h5>
+                      <p className="text-xs font-bold text-slate-400 mt-0.5 flex items-center">
+                        <IndianRupee className="w-3 h-3 text-indigo-400" />
+                        {insufficientFundsItem.price.toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Transaction Math Breakdown */}
+                  <div className="bg-[#171920] border border-slate-800 p-4 rounded-xl space-y-2.5">
+                    <div className="flex justify-between items-center text-xs text-slate-400">
+                      <span>Available Wallet Balance</span>
+                      <span className="font-mono text-white font-semibold">₹{userRef.walletBalance.toFixed(2)}</span>
+                    </div>
+
+                    <div className="flex justify-between items-center text-xs text-slate-400">
+                      <span>Item Trade Cost</span>
+                      <span className="font-mono text-white font-semibold">-₹{insufficientFundsItem.price.toFixed(2)}</span>
+                    </div>
+
+                    <div className="h-px bg-slate-800 my-1" />
+
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="font-semibold text-rose-400">Escrow Shortfall</span>
+                      <span className="font-mono text-rose-400 font-black text-sm">
+                        ₹{(insufficientFundsItem.price - userRef.walletBalance).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <p className="text-[11px] text-slate-400 leading-relaxed text-center py-1">
+                    Your current balance is insufficient to lock this trade. Complete an instant secure top-up using the Razorpay sandbox emulation protocol below.
+                  </p>
+
+                  {/* Operational Controls */}
+                  <div className="space-y-2 pt-2">
+                    <button
+                      onClick={handleQuickAutoFundingAndBuy}
+                      disabled={fundingLoading}
+                      className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-500 font-bold text-xs text-white rounded-xl flex items-center justify-center gap-1.5 transition cursor-pointer shadow-lg shadow-indigo-600/10"
+                    >
+                      {fundingLoading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Processing Top-Up Ledgers...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Coins className="w-4 h-4" />
+                          <span>Secure Quick Top-up & Buy</span>
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      onClick={() => setInsufficientFundsItem(null)}
+                      disabled={fundingLoading}
+                      className="w-full py-2.5 bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-slate-200 text-xs font-semibold rounded-xl transition cursor-pointer"
+                    >
+                      Cancel Escrow Request
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Purchase Success Confirmation Modal */}
+      <AnimatePresence>
+        {recentPurchasedItem && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setRecentPurchasedItem(null)}
+              className="fixed inset-0 bg-black/80 backdrop-blur-xs z-50 flex items-center justify-center p-4"
+            >
+              {/* Modal Container */}
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-[#111216] border border-slate-800 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl text-center"
+              >
+                {/* Header Animated Glow */}
+                <div className="p-8 bg-emerald-500/5 flex flex-col items-center space-y-4">
+                  <div className="inline-flex p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-full animate-bounce">
+                    <CheckCircle className="w-10 h-10 text-emerald-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-white">Escrow Pledge Registered!</h3>
+                    <p className="text-[10px] text-emerald-400 font-mono tracking-widest uppercase mt-0.5">Secure Transaction Authenticated</p>
+                  </div>
+                </div>
+
+                <div className="p-6 space-y-5 pt-2">
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    Student credits matching <span className="text-white font-semibold">₹{recentPurchasedItem.price.toFixed(2)}</span> have been deducted from your wallet and securely locked inside the campus sandbox escrow contract.
+                  </p>
+
+                  {/* Next Step Checklist */}
+                  <div className="p-4 bg-slate-900 border border-slate-850 rounded-xl space-y-2.5 text-left text-xs">
+                    <span className="text-[9px] uppercase tracking-wider text-slate-500 font-bold block mb-1">Transaction Checklist</span>
+                    <div className="flex items-start gap-2.5">
+                      <span className="text-emerald-400 font-medium">✓</span>
+                      <p className="text-slate-300">Transaction hash successfully indexed on Firestore</p>
+                    </div>
+                    <div className="flex items-start gap-2.5">
+                      <span className="text-emerald-400 font-medium">✓</span>
+                      <p className="text-slate-300">Credits locked in multi-sig sandbox vault</p>
+                    </div>
+                    <div className="flex items-start gap-2.5">
+                      <span className="text-indigo-400 font-bold animate-pulse">●</span>
+                      <p className="text-slate-300">Coordinate on-campus exchange with <strong className="text-white font-semibold">{recentPurchasedItem.sellerName}</strong></p>
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-orange-500/5 rounded-lg border border-orange-500/10 text-left text-[11px] text-orange-400 leading-normal font-sans">
+                    <strong>Note:</strong> Check the <strong>Wallet</strong>'s "Escrow Safe Locks" sub-panel to release payment once you inspect the item, or file a dispute ticket if issues arise.
+                  </div>
+
+                  <button
+                    onClick={() => setRecentPurchasedItem(null)}
+                    className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow-lg transition cursor-pointer animate-fade-in"
+                  >
+                    Acknowledge & Continue
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

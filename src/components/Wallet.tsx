@@ -23,6 +23,7 @@ export default function Wallet({ userRef, onUpdateUser }: WalletProps) {
 
   // Dynamic Razorpay SDK loading state
   const [scriptLoaded, setScriptLoaded] = useState(false);
+  const [useEmulator, setUseEmulator] = useState(true);
 
   // Custom Razorpay Simulator States
   const [paymentMethod, setPaymentMethod] = useState<"card" | "upi" | "netbanking">("card");
@@ -80,13 +81,13 @@ export default function Wallet({ userRef, onUpdateUser }: WalletProps) {
     setErrorMessage("");
     
     // Try to launch real Razorpay Web SDK if loaded and active
-    if (scriptLoaded && (window as any).Razorpay) {
+    if (!useEmulator && scriptLoaded && (window as any).Razorpay) {
       try {
         const options = {
-          key: "rzp_test_campusconnect123abc456", // Mock Test Key
+          key: "rzp_test_tradetutor123abc456", // Mock Test Key
           amount: amt * 100, // in Paise (e.g. ₹10.00 is 1000 paise)
           currency: "INR",
-          name: "Campus Connect Inc.",
+          name: "Trade Tutor Inc.",
           description: "Secure Wallet topup via Razorpay Checkout",
           image: userRef.avatar || "https://images.unsplash.com/photo-1570295999915-56ceb5ecca61?auto=format&fit=crop&q=80&w=150",
           handler: async function (response: any) {
@@ -325,7 +326,7 @@ export default function Wallet({ userRef, onUpdateUser }: WalletProps) {
                 <div className="space-y-1.5">
                   <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Merchant Profile</label>
                   <div className="p-3 bg-slate-900 border border-slate-800/80 rounded-lg text-xs text-slate-300">
-                    <p className="font-bold text-white">CAMPUS CONNECT PVT. LTD.</p>
+                    <p className="font-bold text-white">TRADE TUTOR PVT. LTD.</p>
                     <p className="text-[10px] text-slate-500 mt-0.5">Secure Escrow Services & Peer Tutoring Gateway</p>
                   </div>
                 </div>
@@ -345,6 +346,39 @@ export default function Wallet({ userRef, onUpdateUser }: WalletProps) {
                     />
                   </div>
                   <p className="text-[9px] text-slate-500">Funds are temporarily escrowed and fully refundable via disputes ledger.</p>
+                </div>
+
+                <div className="space-y-2 bg-[#171920] p-3.5 rounded-xl border border-slate-850">
+                  <span className="text-[9.5px] uppercase font-bold text-indigo-400 tracking-wider font-mono">Simulate Payment Gateway</span>
+                  <div className="flex gap-4 items-center pt-1.5">
+                    <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer select-none">
+                      <input 
+                        type="radio" 
+                        name="gatewayMode" 
+                        checked={useEmulator}
+                        onChange={() => setUseEmulator(true)}
+                        className="text-indigo-600 border-slate-700 bg-slate-900 focus:ring-0 focus:outline-none"
+                      />
+                      <span className="font-medium text-slate-200">Sandbox Emulator (Recommended)</span>
+                    </label>
+                  </div>
+                  <div className="flex gap-4 items-center">
+                    <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer select-none">
+                      <input 
+                        type="radio" 
+                        name="gatewayMode" 
+                        checked={!useEmulator}
+                        onChange={() => setUseEmulator(false)}
+                        className="text-indigo-600 border-slate-700 bg-slate-900 focus:ring-0 focus:outline-none"
+                      />
+                      <span className="font-medium text-slate-200">Real SDK Checkout (Requires secure popups)</span>
+                    </label>
+                  </div>
+                  <p className="text-[9.5px] text-slate-400 leading-normal pt-1 border-t border-slate-800 mt-1">
+                    {useEmulator 
+                      ? "✨ Guided checkout bypasses security iframe shields to grant immediate wallet credits." 
+                      : "⚡ Loads live Razorpay script flow. Note: typically gets blocked in sandboxed preview windows."}
+                  </p>
                 </div>
 
                 <div className="flex gap-2 pt-1">
@@ -773,7 +807,7 @@ export default function Wallet({ userRef, onUpdateUser }: WalletProps) {
                 </div>
 
                 <div className="p-3 bg-slate-900 border border-slate-800 rounded-lg text-left text-[11px] space-y-1 text-slate-400 font-mono">
-                  <p><span className="text-slate-500 font-bold">MERCHANT:</span> Campus Connect Pvt. Ltd.</p>
+                  <p><span className="text-slate-500 font-bold">MERCHANT:</span> Trade Tutor Pvt. Ltd.</p>
                   <p><span className="text-slate-500 font-bold">DEPOSIT:</span> ₹{Number(depositAmount).toFixed(2)}</p>
                   <p><span className="text-slate-500 font-bold">METHOD:</span> {paymentMethod.toUpperCase()}</p>
                   <p><span className="text-slate-500 font-bold">STATUS:</span> FIRESTORE_COMMITTED_OK</p>
@@ -789,7 +823,7 @@ export default function Wallet({ userRef, onUpdateUser }: WalletProps) {
                   }}
                   className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold cursor-pointer transition"
                 >
-                  Return to Campus Wallet
+                  Return to Trade Tutor Wallet
                 </button>
               </div>
             )}

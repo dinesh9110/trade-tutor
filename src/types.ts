@@ -85,6 +85,7 @@ export interface TeamMemberRequest {
   membersLimit: number;
   status: "Open" | "Full";
   createdAt: string;
+  deadline?: string;
 }
 
 export interface ChatMessage {

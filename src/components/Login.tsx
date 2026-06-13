@@ -134,7 +134,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
       if (!existing) {
         await createUserProfileInDb(uid, {
           name: "Guest Scholar",
-          email: "guest@campusconnect.edu",
+          email: "guest@tradetutor.edu",
           role: UserRole.STUDENT,
           avatar: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&q=80&w=200",
           bio: "Just checking out the platform!",
@@ -144,7 +144,11 @@ export default function Login({ onLoginSuccess }: LoginProps) {
       onLoginSuccess(uid);
     } catch (err: any) {
       console.error("Anonymous authentication error", err);
-      setErrorMsg("Instant Access error. Please register or sign in with email.");
+      if (err?.code === "auth/admin-restricted-operation" || (err?.message && err.message.includes("admin-restricted-operation"))) {
+        setErrorMsg("Instant Guest access is disabled in your Firebase configuration! To enable this feature, please go to your Firebase Console -> Authentication -> Sign-in Method, and enable the 'Anonymous' sign-in provider.");
+      } else {
+        setErrorMsg("Instant Access error. Please register or sign in with email.");
+      }
     } finally {
       setLoading(false);
     }
@@ -163,10 +167,10 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         {/* Logo and Greeting Header */}
         <div className="text-center space-y-2">
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 to-indigo-400 flex items-center justify-center font-bold text-white text-lg shadow-lg shadow-indigo-600/10 mx-auto">
-            CC
+            TT
           </div>
           <div>
-            <h1 className="font-sans font-black text-white text-xl tracking-tight uppercase leading-none">Campus Connect</h1>
+            <h1 className="font-sans font-black text-white text-xl tracking-tight uppercase leading-none">Trade Tutor</h1>
             <span className="text-[10px] text-indigo-400 font-mono tracking-widest uppercase mt-1 block">Real-time college service network</span>
           </div>
           <p className="text-slate-450 text-xs mt-1">
@@ -327,27 +331,17 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         </div>
 
         {/* Third Party logins */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="block">
           {/* Real Google Login */}
           <button
             onClick={handleGoogleSignIn}
             disabled={loading}
-            className="flex items-center justify-center gap-2 border border-slate-800 bg-slate-950/60 hover:bg-slate-850 text-slate-200 hover:text-white rounded-xl py-2.5 text-xs font-semibold hover:border-slate-700 transition cursor-pointer"
+            className="w-full flex items-center justify-center gap-2 border border-slate-800 bg-slate-950/60 hover:bg-slate-850 text-slate-200 hover:text-white rounded-xl py-3 text-xs font-semibold hover:border-slate-700 transition cursor-pointer"
           >
             <svg className="w-3.5 h-3.5 text-slate-450" fill="currentColor" viewBox="0 0 24 24">
               <path d="M12.24 10.285V13.4h6.887c-.275 1.565-1.88 4.604-6.887 4.604-4.33 0-7.866-3.577-7.866-8s3.536-8 7.866-8c2.46 0 4.105 1.025 5.047 1.926l2.427-2.334C17.955 2.192 15.34 1 12.24 1 6.033 1 1 6.033 1 12.24s5.033 11.24 11.24 11.24c6.478 0 10.793-4.537 10.793-10.986 0-.737-.08-1.3-.177-1.859H12.24z"/>
             </svg>
-            <span>Google Auth</span>
-          </button>
-
-          {/* Anonymous Fallback Guest login */}
-          <button
-            onClick={handleQuickDemoAccess}
-            disabled={loading}
-            className="flex items-center justify-center gap-1.5 border border-slate-800 bg-slate-950/60 hover:bg-slate-850 text-emerald-400 hover:text-emerald-300 rounded-xl py-2.5 text-xs font-semibold hover:border-slate-700 transition cursor-pointer"
-          >
-            <Sparkles className="w-3.5 h-3.5 shrink-0" />
-            <span>Instant Guest</span>
+            <span>Sign in with Google</span>
           </button>
         </div>
 

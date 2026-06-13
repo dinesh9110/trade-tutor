@@ -232,7 +232,7 @@ let chats = [
     participantName: "Campus System Support",
     participantAvatar: "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&q=80&w=150",
     participantRole: "System Admin",
-    lastMessage: "Welcome to Campus Connect! Go in 'Wallet' tab to deposit mock credits.",
+    lastMessage: "Welcome to Trade Tutor! Go in 'Wallet' tab to deposit mock credits.",
     lastMessageAt: "Yesterday",
     unreadCount: 0,
     messages: [
@@ -242,7 +242,7 @@ let chats = [
         senderId: "admin_hub",
         senderName: "System",
         senderAvatar: "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&q=80&w=150",
-        text: "Welcome to Campus Connect! Explore assignments, trade goods, connect with project teammates and use our server-side Gemini powered tutor.",
+        text: "Welcome to Trade Tutor! Explore assignments, trade goods, connect with project teammates and use our server-side Gemini powered tutor.",
         createdAt: "Yesterday"
       }
     ]
@@ -667,7 +667,7 @@ app.post("/api/ai/chat", async (req, res) => {
   }
 
   // Inject professional contextual system instructions according to category
-  let systemInstruction = "You are Campus Connect Expert AI, a helpful, deeply knowledgeable academic assistant for college students.";
+  let systemInstruction = "You are Trade Tutor Expert AI, a helpful, deeply knowledgeable academic assistant for college students.";
   
   if (category === "resume-builder") {
     systemInstruction = `You are a Career Path and Resume Designer. 
@@ -732,7 +732,7 @@ app.get("/api/docs/specifications", (req, res) => {
     status: "success",
     appVersion: "1.0.0",
     docs: {
-      prd: "Campus Connect is a comprehensive peer-to-peer ecosystem designed exclusively for college campuses to alleviate academic, resource, and professional friction. By merging a secure college goods marketplace, an escrowed assignment guidance center, teammate/mentor search tools, Google Gemini AI tutoring, and simulated Razorpay payments, it empowers students with unified tools to thrive.",
+      prd: "Trade Tutor is a comprehensive peer-to-peer ecosystem designed exclusively for college campuses to alleviate academic, resource, and professional friction. By merging a secure college goods marketplace, an escrowed assignment guidance center, teammate/mentor search tools, Google Gemini AI tutoring, and simulated Razorpay payments, it empowers students with unified tools to thrive.",
       databaseEngine: "PostgreSQL Database Model using Prisma ORM",
       securityFramework: "JSON Web Tokens (JWT) inside auth cookies, role-based access control (RBAC), sanitized database queries preventing SQLi, and in-memory rate-limiting",
       devopsStrategy: "Multi-stage Dockerfile bundling Vite assets and compiling Express/TS via esbuild with automated GitHub Actions testing CI pipelines."
@@ -764,7 +764,7 @@ const startServer = async () => {
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Campus Connect Backend Server operational on http://0.0.0.0:${PORT}`);
+    console.log(`Trade Tutor Backend Server operational on http://0.0.0.0:${PORT}`);
   });
 };
 

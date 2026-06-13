@@ -12,7 +12,7 @@ export default function AiAssistant() {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "model",
-      text: "Hello! I am your server-side Google Gemini-powered Campus Connect Tutor. Select one of the study or career paths on the left to activate optimized system parameters, then type your questions below!"
+      text: "Hello! I am your server-side Google Gemini-powered Trade Tutor. Select one of the study or career paths on the left to activate optimized system parameters, then type your questions below!"
     }
   ]);
   const [input, setInput] = useState("");
