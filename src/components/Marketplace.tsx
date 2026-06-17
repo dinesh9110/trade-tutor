@@ -2,21 +2,22 @@ import React, { useState, useEffect } from "react";
 import { 
   Search, Filter, Plus, Book, Cpu, Radio, Clipboard, IndianRupee, 
   RefreshCw, ShoppingCart, User, Trash2, ShieldAlert, CheckCircle, 
-  Sparkles, AlertTriangle, ArrowRight, Wallet, Coins, Loader2 
+  Sparkles, AlertTriangle, ArrowRight, Wallet, Coins, Loader2, MessageSquare 
 } from "lucide-react";
 import { ProductListing, UserProfile } from "../types";
 import { 
   subscribeProducts, addProductToDb, buyProductInDb, deleteProductFromDb, 
-  depositIntoWalletInDb 
+  depositIntoWalletInDb, createChatThreadInDb 
 } from "../firebaseService";
 import { AnimatePresence, motion } from "motion/react";
 
 interface MarketplaceProps {
   userRef: UserProfile;
   onUpdateUser: (profile: UserProfile) => void;
+  onNavigate?: (tabId: string) => void;
 }
 
-export default function Marketplace({ userRef, onUpdateUser }: MarketplaceProps) {
+export default function Marketplace({ userRef, onUpdateUser, onNavigate }: MarketplaceProps) {
   const [products, setProducts] = useState<ProductListing[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
@@ -38,6 +39,18 @@ export default function Marketplace({ userRef, onUpdateUser }: MarketplaceProps)
   const [newPrice, setNewPrice] = useState("");
   const [newCond, setNewCond] = useState<"New" | "Like New" | "Good" | "Fair">("Good");
   const [newImg, setNewImg] = useState("");
+
+  const handleMessageSeller = async (p: ProductListing) => {
+    try {
+      await createChatThreadInDb(userRef, p.sellerId, p.sellerName, p.sellerAvatar, "Seller");
+      if (onNavigate) {
+        onNavigate("chats");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Unable to open chat with seller.");
+    }
+  };
 
   useEffect(() => {
     setLoading(true);
@@ -282,18 +295,29 @@ export default function Marketplace({ userRef, onUpdateUser }: MarketplaceProps)
                         Remove Listing
                       </button>
                     ) : (
-                      <button
-                        onClick={() => handleBuy(p.id)}
-                        disabled={p.status === "Sold"}
-                        className={`w-full py-2 px-3 text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 transition cursor-pointer ${
-                          p.status === "Sold" 
-                            ? "bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed" 
-                            : "bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm"
-                        }`}
-                      >
-                        <ShoppingCart className="w-3.5 h-3.5" />
-                        {p.status === "Sold" ? "Sold in Escrow" : "Purchase via Escrow"}
-                      </button>
+                      <>
+                        <button
+                          onClick={() => handleBuy(p.id)}
+                          disabled={p.status === "Sold"}
+                          className={`flex-grow py-2 px-3 text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                            p.status === "Sold" 
+                              ? "bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed" 
+                              : "bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm"
+                          }`}
+                        >
+                          <ShoppingCart className="w-3.5 h-3.5" />
+                          {p.status === "Sold" ? "Sold" : "Buy Now"}
+                        </button>
+                        
+                        <button
+                          type="button"
+                          onClick={() => handleMessageSeller(p)}
+                          title="Message Seller"
+                          className="px-3 py-2 bg-slate-950 hover:bg-slate-850 text-indigo-400 hover:text-white border border-slate-800 hover:border-indigo-500/30 rounded-xl transition cursor-pointer flex items-center justify-center"
+                        >
+                          <MessageSquare className="w-4 h-4" />
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>

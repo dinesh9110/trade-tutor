@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Briefcase, MapPin, IndianRupee, Bookmark, Send, CheckCircle, Search, RefreshCw, BookmarkCheck } from "lucide-react";
-import { InternshipListing, UserProfile } from "../types";
+import { InternshipListing, UserProfile, UserRole } from "../types";
 import { 
   subscribeInternships, 
   subscribeInternshipInteractions, 
@@ -87,6 +87,8 @@ export default function Internships({ userRef }: InternshipsProps) {
   // Track counts
   const savedJobs = jobs.filter(j => j.saved);
   const appliedJobs = jobs.filter(j => j.applied);
+
+
 
   return (
     <div className="space-y-6">

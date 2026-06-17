@@ -1,17 +1,30 @@
 import React, { useState, useEffect } from "react";
 import { ListFilter, Plus, GraduationCap, IndianRupee, Clock, MessageSquare, Send, RefreshCw, Star } from "lucide-react";
 import { Assignment, UserProfile } from "../types";
-import { subscribeAssignments, addAssignmentToDb, submitProposalToDb, acceptProposalInDb } from "../firebaseService";
+import { subscribeAssignments, addAssignmentToDb, submitProposalToDb, acceptProposalInDb, createChatThreadInDb } from "../firebaseService";
 
 interface AssignmentsProps {
   userRef: UserProfile;
+  onNavigate?: (tabId: string) => void;
 }
 
-export default function Assignments({ userRef }: AssignmentsProps) {
+export default function Assignments({ userRef, onNavigate }: AssignmentsProps) {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+
+  const handleOpenDirectChat = async (targetId: string, targetName: string, targetAvatar: string, targetRole: string) => {
+    try {
+      await createChatThreadInDb(userRef, targetId, targetName, targetAvatar, targetRole);
+      if (onNavigate) {
+        onNavigate("chats");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Unable to open secure chat thread.");
+    }
+  };
   
   // Create Assignment State
   const [newTitle, setNewTitle] = useState("");
@@ -180,6 +193,16 @@ export default function Assignments({ userRef }: AssignmentsProps) {
                   <div className="flex items-center gap-1">
                     <img src={a.userAvatar} className="w-4 h-4 rounded-full" alt={a.userName} />
                     <span>Requested by: {a.userName}</span>
+                    {a.userId !== userRef.id && (
+                      <button
+                        onClick={() => handleOpenDirectChat(a.userId, a.userName, a.userAvatar, "Student")}
+                        className="inline-flex items-center gap-0.5 ml-1.5 px-1.5 py-0.5 bg-slate-950 hover:bg-slate-850 hover:text-indigo-400 border border-slate-805 rounded font-mono text-[9px] cursor-pointer"
+                        title="Chat about requirements"
+                      >
+                        <MessageSquare className="w-2.5 h-2.5" />
+                        Chat
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -203,6 +226,16 @@ export default function Assignments({ userRef }: AssignmentsProps) {
                               <img src={prop.expertAvatar} className="w-4 h-4 rounded-full" alt={prop.expertName} />
                               <span className="font-semibold text-white text-[11px]">{prop.expertName}</span>
                               <span className="text-[9px] text-amber-400 flex items-center">★{prop.expertRating}</span>
+                              {prop.expertId !== userRef.id && (
+                                <button
+                                  onClick={() => handleOpenDirectChat(prop.expertId, prop.expertName, prop.expertAvatar, "Expert")}
+                                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-slate-900 hover:bg-slate-800 hover:text-indigo-400 border border-slate-800 rounded text-[9px] font-mono cursor-pointer"
+                                  title="Chat with tutor"
+                                >
+                                  <MessageSquare className="w-2.5 h-2.5" />
+                                  Chat
+                                </button>
+                              )}
                               <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
                                 prop.status === "Accepted"
                                   ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"

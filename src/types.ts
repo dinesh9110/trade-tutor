@@ -109,6 +109,14 @@ export interface ChatThread {
   lastMessage: string;
   lastMessageAt: string;
   unreadCount: number;
+  memberUids?: string[];
+  memberDetails?: {
+    [uid: string]: {
+      name: string;
+      avatar: string;
+      role: string;
+    };
+  };
 }
 
 export interface InternshipListing {
@@ -132,6 +140,7 @@ export interface ForumPost {
   title: string;
   category: "General" | "Discussions" | "Events" | "Hackathons";
   content: string;
+  authorId?: string;
   authorName: string;
   authorAvatar: string;
   authorRole: string;

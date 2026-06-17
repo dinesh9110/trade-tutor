@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
-import { MessageSquare, Send, Paperclip, CheckCheck, Circle, RefreshCw, Layers } from "lucide-react";
+import { MessageSquare, Send, Paperclip, CheckCheck, Circle, RefreshCw, Layers, Users, Sparkles } from "lucide-react";
 import { ChatThread, UserProfile } from "../types";
-import { subscribeChats, subscribeMessages, sendChatMessageToDb } from "../firebaseService";
+import { subscribeChats, subscribeMessages, sendChatMessageToDb, subscribePeers, createChatThreadInDb } from "../firebaseService";
 
 interface ChatsProps {
   userRef: UserProfile;
@@ -9,6 +9,8 @@ interface ChatsProps {
 
 export default function Chats({ userRef }: ChatsProps) {
   const [threads, setThreads] = useState<ChatThread[]>([]);
+  const [peers, setPeers] = useState<UserProfile[]>([]);
+  const [activeSubTab, setActiveSubTab] = useState<"active" | "discover">("active");
   const [activeThread, setActiveThread] = useState<ChatThread | null>(null);
   const [activeMessages, setActiveMessages] = useState<any[]>([]);
   const [inputMessage, setInputMessage] = useState("");
@@ -19,15 +21,38 @@ export default function Chats({ userRef }: ChatsProps) {
   useEffect(() => {
     setLoading(true);
     const unsubscribe = subscribeChats(userRef.id, (loadedThreads) => {
-      setThreads(loadedThreads);
+      const processed = loadedThreads.map(t => {
+        if (t.memberDetails) {
+          const otherUid = Object.keys(t.memberDetails).find(uid => uid !== userRef.id);
+          if (otherUid && t.memberDetails[otherUid]) {
+            const detail = t.memberDetails[otherUid];
+            return {
+              ...t,
+              participantId: otherUid,
+              participantName: detail.name,
+              participantAvatar: detail.avatar,
+              participantRole: detail.role
+            };
+          }
+        }
+        return t;
+      });
+      setThreads(processed);
       setLoading(false);
       // If there's an active thread, make sure it stays updated in reference
       if (activeThread) {
-        const u = loadedThreads.find(t => t.id === activeThread.id);
+        const u = processed.find(t => t.id === activeThread.id);
         if (u) setActiveThread(u);
       }
     });
     return () => unsubscribe();
+  }, [userRef.id, activeThread?.id]);
+
+  useEffect(() => {
+    const unsub = subscribePeers((loadedPeers) => {
+      setPeers(loadedPeers.filter(p => p.id !== userRef.id));
+    });
+    return () => unsub();
   }, [userRef.id]);
 
   useEffect(() => {
@@ -65,6 +90,32 @@ export default function Chats({ userRef }: ChatsProps) {
     }
   };
 
+  const handleStartPeerChat = async (peer: UserProfile) => {
+    try {
+      setLoading(true);
+      const chatId = await createChatThreadInDb(userRef, peer.id, peer.name, peer.avatar, peer.role);
+      setActiveSubTab("active");
+      
+      const constructedThread: ChatThread = {
+        id: chatId,
+        participantId: peer.id,
+        participantName: peer.name,
+        participantAvatar: peer.avatar,
+        participantRole: peer.role,
+        lastMessage: "Conversation initiated.",
+        lastMessageAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        unreadCount: 0
+      };
+      
+      setActiveThread(constructedThread);
+    } catch (err) {
+      console.error(err);
+      alert("Could not start secure conversation.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleFileUploadMock = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -88,44 +139,96 @@ export default function Chats({ userRef }: ChatsProps) {
         <div className="p-4 bg-slate-950 border-b border-slate-800 flex justify-between items-center">
           <h3 className="font-sans font-bold text-white text-xs uppercase tracking-wider flex items-center gap-1.5">
             <MessageSquare className="w-4 h-4 text-indigo-400" />
-            Active Peers
+            Peers Chat
           </h3>
           <button className="p-1 bg-slate-900 text-slate-400 hover:text-white rounded transition">
             <RefreshCw className="w-3.5 h-3.5" />
           </button>
         </div>
 
-        <div className="flex-grow overflow-y-auto divide-y divide-slate-850">
-          {threads.length === 0 ? (
-            <div className="text-center py-10 text-slate-500 text-xs text-slate-450">No chat sessions currently open.</div>
-          ) : (
-            threads.map(t => (
-              <button
-                key={t.id}
-                onClick={() => handleSelectThread(t)}
-                className={`w-full p-4 flex gap-3 text-left transition ${
-                  activeThread?.id === t.id 
-                    ? "bg-slate-850 text-white" 
-                    : "hover:bg-slate-850 text-slate-350"
-                }`}
-              >
-                <div className="relative flex-shrink-0">
-                  <img src={t.participantAvatar} className="w-10 h-10 rounded-full object-cover border border-slate-800" alt={t.participantName} />
-                  {t.unreadCount > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-indigo-500 border-2 border-slate-900 rounded-full" />
-                  )}
-                </div>
+        {/* Dynamic subtabs */}
+        <div className="grid grid-cols-2 bg-slate-950 border-b border-slate-850 p-1 gap-1">
+          <button
+            onClick={() => setActiveSubTab("active")}
+            className={`py-1.5 text-[10px] uppercase font-bold tracking-wider rounded-lg transition cursor-pointer text-center ${
+              activeSubTab === "active"
+                ? "bg-indigo-600 text-white shadow"
+                : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            Chats ({threads.length})
+          </button>
+          <button
+            onClick={() => setActiveSubTab("discover")}
+            className={`py-1.5 text-[10px] uppercase font-bold tracking-wider rounded-lg transition cursor-pointer text-center ${
+              activeSubTab === "discover"
+                ? "bg-indigo-600 text-white shadow"
+                : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            All Peers ({peers.length})
+          </button>
+        </div>
 
-                <div className="flex-grow space-y-1.5 min-w-0">
-                  <div className="flex justify-between items-center">
-                    <h4 className="font-semibold text-xs text-white truncate max-w-[120px]">{t.participantName}</h4>
-                    <span className="text-[9px] text-slate-500">{t.lastMessageAt}</span>
+        <div className="flex-grow overflow-y-auto divide-y divide-slate-850">
+          {activeSubTab === "active" ? (
+            threads.length === 0 ? (
+              <div className="text-center py-10 text-slate-500 text-xs text-slate-450 px-4">
+                No active chat sessions. Go to the <span className="font-semibold text-indigo-400">All Peers</span> tab or click "Chat" under Community, Marketplace or Assignments list to begin.
+              </div>
+            ) : (
+              threads.map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => handleSelectThread(t)}
+                  className={`w-full p-4 flex gap-3 text-left transition ${
+                    activeThread?.id === t.id 
+                      ? "bg-slate-850 text-white" 
+                      : "hover:bg-slate-850 text-slate-350"
+                  }`}
+                >
+                  <div className="relative flex-shrink-0">
+                    <img src={t.participantAvatar} className="w-10 h-10 rounded-full object-cover border border-slate-800" alt={t.participantName} />
+                    {t.unreadCount > 0 && (
+                      <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-indigo-500 border-2 border-slate-900 rounded-full" />
+                    )}
                   </div>
-                  <div className="text-[10px] text-slate-400 font-mono font-medium">{t.participantRole}</div>
-                  <p className="text-[11px] text-slate-400 truncate leading-none">{t.lastMessage}</p>
+
+                  <div className="flex-grow space-y-1.5 min-w-0">
+                    <div className="flex justify-between items-center">
+                      <h4 className="font-semibold text-xs text-white truncate max-w-[120px]">{t.participantName}</h4>
+                      <span className="text-[9px] text-slate-500">{t.lastMessageAt}</span>
+                    </div>
+                    <div className="text-[10px] text-slate-400 font-mono font-medium">{t.participantRole}</div>
+                    <p className="text-[11px] text-slate-400 truncate leading-none">{t.lastMessage}</p>
+                  </div>
+                </button>
+              ))
+            )
+          ) : (
+            peers.length === 0 ? (
+              <div className="text-center py-10 text-slate-500 text-xs text-slate-450 px-4">No other registered peers found on the platform.</div>
+            ) : (
+              peers.map(p => (
+                <div key={p.id} className="p-4 flex items-center justify-between gap-3 text-left hover:bg-slate-850/30 transition">
+                  <div className="flex items-center gap-3">
+                    <img src={p.avatar} className="w-10 h-10 rounded-full object-cover border border-slate-800" alt={p.name} />
+                    <div>
+                      <h4 className="font-semibold text-xs text-white leading-tight">{p.name}</h4>
+                      <p className="text-[10px] text-indigo-400 font-mono mt-0.5 leading-none">{p.role}</p>
+                      {p.major && <p className="text-[9px] text-slate-500 mt-1 leading-none">{p.major}</p>}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleStartPeerChat(p)}
+                    className="p-1.5 bg-indigo-600/10 hover:bg-indigo-600 border border-indigo-500/20 hover:border-indigo-500 rounded-lg text-indigo-400 hover:text-white transition cursor-pointer"
+                    title="Send Message"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                  </button>
                 </div>
-              </button>
-            ))
+              ))
+            )
           )}
         </div>
       </div>

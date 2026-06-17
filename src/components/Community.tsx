@@ -1,18 +1,31 @@
 import React, { useState, useEffect } from "react";
 import { MessageSquare, Heart, Plus, Calendar, Trophy, RefreshCw, Layers } from "lucide-react";
 import { ForumPost, UserProfile } from "../types";
-import { subscribeForums, addForumPostToDb, likeForumPostInDb } from "../firebaseService";
+import { subscribeForums, addForumPostToDb, likeForumPostInDb, createChatThreadInDb } from "../firebaseService";
 import { auth } from "../firebase";
 
 interface CommunityProps {
   userRef: UserProfile;
+  onNavigate?: (tabId: string) => void;
 }
 
-export default function Community({ userRef }: CommunityProps) {
+export default function Community({ userRef, onNavigate }: CommunityProps) {
   const [posts, setPosts] = useState<ForumPost[]>([]);
   const [loading, setLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+
+  const handleOpenDirectChat = async (targetId: string, targetName: string, targetAvatar: string, targetRole: string) => {
+    try {
+      await createChatThreadInDb(userRef, targetId, targetName, targetAvatar, targetRole);
+      if (onNavigate) {
+        onNavigate("chats");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Unable to open secure chat thread.");
+    }
+  };
 
   const [title, setTitle] = useState("");
   const [cat, setCat] = useState<"General" | "Discussions" | "Events" | "Hackathons">("Discussions");
@@ -39,6 +52,7 @@ export default function Community({ userRef }: CommunityProps) {
         title,
         category: cat,
         content,
+        authorId: userRef.id,
         authorName: userRef.name,
         authorAvatar: userRef.avatar,
         authorRole: userRef.role
@@ -141,7 +155,18 @@ export default function Community({ userRef }: CommunityProps) {
                   <div className="flex items-center gap-2">
                     <img src={p.authorAvatar} className="w-5.5 h-5.5 rounded-full object-cover border border-slate-705" alt={p.authorName} />
                     <div>
-                      <div className="text-[10px] font-bold text-white leading-none">{p.authorName}</div>
+                      <div className="text-[10px] font-bold text-white leading-none flex items-center gap-1.5">
+                        {p.authorName}
+                        {p.authorId && p.authorId !== userRef.id && (
+                          <button
+                            onClick={() => handleOpenDirectChat(p.authorId!, p.authorName, p.authorAvatar, p.authorRole)}
+                            className="inline-flex items-center gap-0.5 px-1 py-0.5 bg-slate-950 hover:bg-slate-850 hover:text-indigo-400 border border-slate-800 rounded text-[8px] font-mono cursor-pointer"
+                            title="Direct Message Author"
+                          >
+                            Chat
+                          </button>
+                        )}
+                      </div>
                       <div className="text-[8px] text-slate-500 leading-none mt-0.5">{p.authorRole}</div>
                     </div>
                   </div>

@@ -706,8 +706,19 @@ export async function createChatThreadInDb(sender: UserProfile, recipientId: str
         lastMessage: "Conversation initiated.",
         lastMessageAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         unreadCount: 0,
-        // @ts-ignore
-        memberUids: [sender.id, recipientId]
+        memberUids: [sender.id, recipientId],
+        memberDetails: {
+          [sender.id]: {
+            name: sender.name,
+            avatar: sender.avatar,
+            role: sender.role
+          },
+          [recipientId]: {
+            name: recipientName,
+            avatar: recipientAvatar,
+            role: recipientRole
+          }
+        }
       };
       await setDoc(threadRef, newThread);
     }

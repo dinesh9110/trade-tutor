@@ -479,18 +479,11 @@ export default function App() {
             onClick={() => setShowProfileModal(true)}
             className="flex items-center gap-2 bg-slate-900 border border-slate-800 hover:border-slate-700 px-3 py-1.5 rounded-xl text-xs text-slate-300 transition cursor-pointer"
           >
-            <div className="relative">
-              <img src={userProfile.avatar} className="w-5.5 h-5.5 rounded-full object-cover border border-slate-755" alt={userProfile.name} />
-              <span className={`absolute bottom-0 right-0 block h-2 w-2 rounded-full ring-2 ring-slate-900 ${isOnline ? "bg-emerald-500 animate-pulse" : "bg-rose-500"}`} />
-            </div>
+            <img src={userProfile.avatar} className="w-5.5 h-5.5 rounded-full object-cover border border-slate-755 animate-fade-in" alt={userProfile.name} />
             <div className="text-left font-medium">
               <div className="leading-none text-white font-semibold">{userProfile.name}</div>
-              <div className="text-[8px] mt-0.5 font-mono tracking-wider flex items-center gap-1.5">
+              <div className="text-[8px] mt-0.5 font-mono tracking-wider">
                 <span className="text-slate-500">{userProfile.role.toUpperCase()}</span>
-                <span className="text-slate-600 font-normal">|</span>
-                <span className={isOnline ? "text-emerald-400 font-bold" : "text-rose-400 font-bold"}>
-                  {isOnline ? "ONLINE" : "OFFLINE"}
-                </span>
               </div>
             </div>
           </button>
@@ -654,18 +647,11 @@ export default function App() {
                     }}
                     className="w-full flex items-center gap-2 bg-slate-900 border border-slate-800 hover:border-slate-700 px-3 py-3 rounded-xl text-xs text-slate-300 transition cursor-pointer"
                   >
-                    <div className="relative">
-                      <img src={userProfile.avatar} className="w-5.5 h-5.5 rounded-full object-cover border border-slate-755" alt="" />
-                      <span className={`absolute bottom-0 right-0 block h-2 w-2 rounded-full ring-2 ring-slate-900 ${isOnline ? "bg-emerald-500 animate-pulse" : "bg-rose-500"}`} />
-                    </div>
+                    <img src={userProfile.avatar} className="w-5.5 h-5.5 rounded-full object-cover border border-slate-755 animate-fade-in" alt="" />
                     <div className="text-left font-medium">
                       <div className="leading-none text-white font-semibold">{userProfile.name}</div>
-                      <div className="text-[8px] mt-0.5 font-mono tracking-wider flex items-center gap-1.5">
+                      <div className="text-[8px] mt-0.5 font-mono tracking-wider">
                         <span className="text-slate-500">{userProfile.role.toUpperCase()}</span>
-                        <span className="text-slate-600 font-normal">|</span>
-                        <span className={isOnline ? "text-emerald-400 font-bold" : "text-rose-400 font-bold"}>
-                          {isOnline ? "ONLINE" : "OFFLINE"}
-                        </span>
                       </div>
                     </div>
                   </button>
@@ -696,11 +682,15 @@ export default function App() {
             <Marketplace 
               userRef={userProfile} 
               onUpdateUser={(updated) => setUserProfile(updated)} 
+              onNavigate={(tabId) => setActiveTab(tabId)}
             />
           )}
 
           {activeTab === "assignments" && (
-            <Assignments userRef={userProfile} />
+            <Assignments 
+              userRef={userProfile} 
+              onNavigate={(tabId) => setActiveTab(tabId)}
+            />
           )}
 
           {activeTab === "projects" && (
@@ -720,7 +710,10 @@ export default function App() {
           )}
 
           {activeTab === "community" && (
-            <Community userRef={userProfile} />
+            <Community 
+              userRef={userProfile} 
+              onNavigate={(tabId) => setActiveTab(tabId)}
+            />
           )}
 
           {activeTab === "wallet" && (
@@ -802,21 +795,6 @@ export default function App() {
                   onChange={(e) => setEditBio(e.target.value)}
                   className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl p-2.5 text-xs text-white focus:outline-none h-16 resize-none"
                 />
-              </div>
-
-              <div className="bg-slate-950/60 border border-slate-850 p-3 rounded-xl flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${isOnline ? "bg-emerald-500 animate-pulse" : "bg-rose-500"}`} />
-                  <div>
-                    <span className="text-[9px] uppercase font-bold text-slate-400 block tracking-wider">Sync Server Status</span>
-                    <span className="text-xs font-semibold text-slate-200">
-                      {isOnline ? "Active Connection" : "Local Sandbox Offline State"}
-                    </span>
-                  </div>
-                </div>
-                <span className="text-[8px] text-slate-500 font-mono font-bold tracking-wider uppercase">
-                  {isOnline ? "Firebase RTDB" : "No Handshake"}
-                </span>
               </div>
 
               <div className="pt-4 flex gap-3">
