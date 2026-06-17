@@ -14,7 +14,6 @@ import Assignments from "./components/Assignments";
 import Projects from "./components/Projects";
 import AiAssistant from "./components/AiAssistant";
 import Chats from "./components/Chats";
-import Internships from "./components/Internships";
 import Community from "./components/Community";
 import Wallet from "./components/Wallet";
 import Login from "./components/Login";
@@ -256,7 +255,6 @@ export default function App() {
     { id: "projects", label: "Team Collaborator", icon: Users },
     { id: "ai", label: "AI Expert Tutor", icon: Sparkles, highlight: true },
     { id: "chats", label: "Peers Chat", icon: MessageSquare },
-    { id: "internships", label: "Careers Portal", icon: Briefcase },
     { id: "community", label: "Community Forums", icon: Layers },
     { id: "wallet", label: "Secure Wallet & Escrow", icon: CreditCard }
   ];
@@ -698,15 +696,11 @@ export default function App() {
           )}
 
           {activeTab === "ai" && (
-            <AiAssistant />
+            <AiAssistant userRef={userProfile} />
           )}
 
           {activeTab === "chats" && (
             <Chats userRef={userProfile} />
-          )}
-
-          {activeTab === "internships" && (
-            <Internships userRef={userProfile} />
           )}
 
           {activeTab === "community" && (

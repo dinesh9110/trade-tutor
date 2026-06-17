@@ -653,6 +653,44 @@ app.post("/api/wallet/deposit", (req, res) => {
 // GEMINI SERVER-SIDE AI ASSISTANT ENDPOINT
 // ==========================================
 
+async function callGeminiWithFallback(aiInstance: GoogleGenAI, prompt: string, systemInstruction: string) {
+  const modelsToTry = [
+    "gemini-2.5-flash",
+    "gemini-3.5-flash",
+    "gemini-3.1-flash-lite"
+  ];
+
+  let lastError: any = null;
+
+  for (const model of modelsToTry) {
+    try {
+      console.log(`[Gemini API] Fast generation attempt. Model: ${model}`);
+      const response = await aiInstance.models.generateContent({
+        model,
+        contents: prompt,
+        config: {
+          systemInstruction,
+          temperature: 0.7,
+        }
+      });
+
+      if (response && response.text) {
+        return {
+          reply: response.text,
+          modelUsed: model
+        };
+      }
+      throw new Error("Empty text response received from Gemini API");
+    } catch (error: any) {
+      lastError = error;
+      console.warn(`[Gemini API Warning] Model ${model} failed:`, error.message || error);
+      // Immediately move to the next model in the list with zero wait delay for maximum speed
+    }
+  }
+
+  throw lastError || new Error("Failed to process request with any of the available models.");
+}
+
 app.post("/api/ai/chat", async (req, res) => {
   if (!process.env.GEMINI_API_KEY || !ai) {
     return res.status(503).json({ 
@@ -699,22 +737,15 @@ Supply clear review rubrics, key architectural traps to avoid, and exact code te
   }
 
   try {
-    const geminiResponse = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
-      contents: prompt,
-      config: {
-        systemInstruction,
-        temperature: 0.7,
-      }
-    });
+    const result = await callGeminiWithFallback(ai, prompt, systemInstruction);
 
     res.json({
       status: "success",
-      reply: geminiResponse.text,
-      modelUsed: "gemini-3.5-flash"
+      reply: result.reply,
+      modelUsed: result.modelUsed
     });
   } catch (error: any) {
-    console.error("Gemini API Error:", error);
+    console.error("Gemini API Error after all attempts:", error);
     res.status(500).json({
       status: "error",
       message: error.message || "Failed to interact with Gemini API. Check telemetry console or billing settings."

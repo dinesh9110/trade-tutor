@@ -1,24 +1,59 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Sparkles, Send, GraduationCap, Award, FileText, Lightbulb, Terminal, AlertCircle, Trash2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import { UserProfile } from "../types";
+import { subscribeAiChats, addAiChatMessageToDb, clearAiChatHistoryInDb } from "../firebaseService";
 
 interface Message {
   role: "user" | "model";
   text: string;
+  category?: string;
 }
 
-export default function AiAssistant() {
+interface AiAssistantProps {
+  userRef: UserProfile;
+}
+
+export default function AiAssistant({ userRef }: AiAssistantProps) {
   const [activeCategory, setActiveCategory] = useState<"study-assistant" | "resume-builder" | "career-advisor" | "project-generator" | "interview-prep">("study-assistant");
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: "model",
-      text: "Hello! I am your server-side Google Gemini-powered Trade Tutor. Select one of the study or career paths on the left to activate optimized system parameters, then type your questions below!"
-    }
-  ]);
+  const [dbMessages, setDbMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Subscribe to real-time sync with user's specific AI Chat sub-collection in Firestore
+  useEffect(() => {
+    const unsub = subscribeAiChats(userRef.id, (loaded) => {
+      setDbMessages(loaded);
+    });
+    return () => unsub();
+  }, [userRef.id]);
+
+  // Filter messages by active operation category
+  const filteredMessages = dbMessages.filter(m => m.category === activeCategory);
+
+  const getIntroForCategory = (cat: string) => {
+    switch (cat) {
+      case "resume-builder":
+        return "Welcome to the AI Resume Builder! Provide your current experience, projects, and target role so we can craft an outstanding professional resume.";
+      case "career-advisor":
+        return "Greetings! I am your AI Career Advisor. Let's map your professional aspirations, skill sets, and potential job pathways in the tech industry.";
+      case "project-generator":
+        return "Need inspiration? I am your AI Project Ideator. Tell me your preferred stack, complexity level, and area of interest to get a complete architectural blueprint.";
+      case "interview-prep":
+        return "Prepare to excel! I am your AI Interview Drill Coach. Let me know if you would like to run coding or system design exercises, and we will get started.";
+      default:
+        return "Hello! I am your server-side Google Gemini-powered Trade Tutor. Select one of the study or career paths on the left to activate optimized system parameters, then type your questions below!";
+    }
+  };
+
+  const displayedMessages = filteredMessages.length > 0 ? filteredMessages : [
+    {
+      role: "model",
+      text: getIntroForCategory(activeCategory)
+    } as Message
+  ];
 
   const categories = [
     { id: "study-assistant", label: "Study Assistant", desc: "Acing STEM courses", icon: GraduationCap },
@@ -30,7 +65,7 @@ export default function AiAssistant() {
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, loading]);
+  }, [displayedMessages, loading]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,8 +75,8 @@ export default function AiAssistant() {
     const userPrompt = input.trim();
     setInput("");
     
-    // Add user message locally
-    setMessages(prev => [...prev, { role: "user", text: userPrompt }]);
+    // Write user prompt to cloud persistence
+    await addAiChatMessageToDb(userRef.id, activeCategory, "user", userPrompt);
     setLoading(true);
 
     try {
@@ -56,33 +91,33 @@ export default function AiAssistant() {
 
       const data = await res.json();
       if (data.status === "success") {
-        setMessages(prev => [...prev, { role: "model", text: data.reply }]);
+        // Save model's reply in cloud database
+        await addAiChatMessageToDb(userRef.id, activeCategory, "model", data.reply);
       } else {
         setErrorMsg(data.message || "Failed to prompt model. Verify server keys.");
-        // Add error as a system reply
-        setMessages(prev => [
-          ...prev, 
-          { 
-            role: "model", 
-            text: `⚠️ **API Error**: ${data.message || "Unspecified configuration issue."}\n\n*Please ensure you have configured your GEMINI_API_KEY in the Secrets menu to use active server routing.*` 
-          }
-        ]);
+        // Save fallback/error visual state in database so the thread contains feedback
+        const errorTemplate = `⚠️ **API Error**: ${data.message || "Unspecified configuration issue."}\n\n*Please ensure you have configured your GEMINI_API_KEY in the Secrets menu to use active server routing.*`;
+        await addAiChatMessageToDb(userRef.id, activeCategory, "model", errorTemplate);
       }
     } catch (err) {
       setErrorMsg("Network timeout while contacting backend server.");
+      const errorTemplate = `⚠️ **Network Error**: Network timeout while contacting backend server.`;
+      await addAiChatMessageToDb(userRef.id, activeCategory, "model", errorTemplate);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleClearChat = () => {
-    if (confirm("Reset current conversation logs?")) {
-      setMessages([
-        {
-          role: "model",
-          text: `Initialized Chat Hub. Select Category and message me your assignments, code snippets, or career questions.`
-        }
-      ]);
+  const handleClearChat = async () => {
+    if (confirm("Reset current conversation logs and clear your full AI history?")) {
+      try {
+        setLoading(true);
+        await clearAiChatHistoryInDb(userRef.id);
+      } catch (err) {
+        console.error("Purging chat failed: ", err);
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -109,12 +144,6 @@ export default function AiAssistant() {
                 key={cat.id}
                 onClick={() => {
                   setActiveCategory(cat.id as any);
-                  setMessages([
-                    {
-                      role: "model",
-                      text: `Switched parameter set to **${cat.label}**. Ask me parameters matching: *"${cat.desc}"*`
-                    }
-                  ]);
                 }}
                 className={`w-full flex items-center gap-3 p-3.5 rounded-xl border transition text-left cursor-pointer ${
                   isSelected 
@@ -157,7 +186,7 @@ export default function AiAssistant() {
 
         {/* Message output center */}
         <div className="p-6 overflow-y-auto flex-grow space-y-4 max-h-[55vh]">
-          {messages.map((m, idx) => {
+          {displayedMessages.map((m, idx) => {
             const isUser = m.role === "user";
             return (
               <div 

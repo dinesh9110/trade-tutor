@@ -789,3 +789,56 @@ export async function depositIntoWalletInDb(userId: string, currentBalance: numb
     handleFirestoreError(err, OperationType.CREATE, path);
   }
 }
+
+export function subscribeAiChats(uid: string, callback: (messages: { role: "user" | "model", text: string, category?: string }[]) => void) {
+  const path = `profiles/${uid}/ai_chats`;
+  const q = query(collection(db, "profiles", uid, "ai_chats"), orderBy("createdAt", "asc"));
+  return onSnapshot(q, (snapshot) => {
+    const list: { role: "user" | "model", text: string, category?: string }[] = [];
+    snapshot.forEach((d) => {
+      const data = d.data();
+      list.push({
+        role: data.role as "user" | "model",
+        text: data.text,
+        category: data.category
+      });
+    });
+    callback(list);
+  }, (error) => {
+    handleFirestoreError(error, OperationType.GET, path);
+  });
+}
+
+export async function addAiChatMessageToDb(uid: string, category: string, role: "user" | "model", text: string) {
+  const path = `profiles/${uid}/ai_chats`;
+  try {
+    const msgId = `ai_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const msg = {
+      id: msgId,
+      userId: uid,
+      category,
+      role,
+      text,
+      createdAt: new Date().toISOString()
+    };
+    await setDoc(doc(db, "profiles", uid, "ai_chats", msgId), msg);
+  } catch (err) {
+    handleFirestoreError(err, OperationType.CREATE, path);
+  }
+}
+
+export async function clearAiChatHistoryInDb(uid: string) {
+  const path = `profiles/${uid}/ai_chats`;
+  try {
+    const q = query(collection(db, "profiles", uid, "ai_chats"));
+    const snapshot = await getDocs(q);
+    const batch = writeBatch(db);
+    snapshot.forEach((d) => {
+      batch.delete(d.ref);
+    });
+    await batch.commit();
+  } catch (err) {
+    handleFirestoreError(err, OperationType.DELETE, path);
+  }
+}
+

@@ -182,12 +182,30 @@
         "updatedAt": { "type": "string" }
       },
       "required": ["id", "userId", "internshipId", "applied", "saved"]
+    },
+    "AiChatMessage": {
+      "title": "AiChatMessage",
+      "description": "Log of messages between the user and AI Tutor.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "category": { "type": "string" },
+        "role": { "type": "string" },
+        "text": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "userId", "category", "role", "text", "createdAt"]
     }
   },
   "firestore": {
     "/profiles/{profileId}": {
       "schema": "UserProfile",
       "description": "Global user profiles."
+    },
+    "/profiles/{profileId}/ai_chats/{chatMessageId}": {
+      "schema": "AiChatMessage",
+      "description": "User specific chat logs with the AI Tutor."
     },
     "/products/{productId}": {
       "schema": "ProductListing",

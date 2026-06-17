@@ -25,6 +25,11 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow create: if isSignedIn() && isOwner(profileId);
       allow update: if isSignedIn() && isOwner(profileId);
+
+      // Subcollection for AI Tutor Chat history
+      match /ai_chats/{chatMessageId} {
+        allow read, write: if isSignedIn() && isOwner(profileId);
+      }
     }
 
     // Products Collection
